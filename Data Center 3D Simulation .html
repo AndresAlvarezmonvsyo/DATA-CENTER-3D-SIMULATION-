@@ -1,0 +1,2381 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Center 3D - Visualización Avanzada</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --dark-color: #2c3e50;
+            --light-color: #ecf0f1;
+            --panel-bg: rgba(44, 62, 80, 0.9);
+            --server-color: #34495e;
+            --server-highlight: #3d566e;
+            --nav-height: 60px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--light-color);
+            padding-bottom: var(--nav-height);
+        }
+        
+        #container {
+            position: absolute;
+            width: 100%;
+            height: calc(100% - var(--nav-height));
+        }
+        
+        /* Barra de navegación inferior */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: var(--nav-height);
+            background: var(--panel-bg);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+            color: var(--light-color);
+            text-decoration: none;
+            font-size: 0.8rem;
+        }
+        
+        .nav-item i {
+            font-size: 1.2rem;
+            margin-bottom: 3px;
+        }
+        
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-5px);
+        }
+        
+        .nav-item.active {
+            color: var(--secondary-color);
+        }
+        
+        /* Modales */
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--panel-bg);
+            border-radius: 10px;
+            padding: 20px;
+            z-index: 2000;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+            display: none;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -40%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal-title {
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            color: var(--light-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .close-modal:hover {
+            color: var(--danger-color);
+            transform: rotate(90deg);
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1500;
+            display: none;
+        }
+        
+        .modal-overlay.active {
+            display: block;
+        }
+        
+        /* Botón de ayuda flotante */
+        #help-btn {
+            position: fixed;
+            bottom: calc(var(--nav-height) + 20px);
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            border: none;
+        }
+        
+        #help-btn:hover {
+            background: #2980b9;
+            transform: scale(1.1) translateY(-5px);
+        }
+        
+        /* Contenido de los modales */
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .stat-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+        }
+        
+        .progress-container {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            background: var(--dark-color);
+            color: var(--light-color);
+            margin: 5px 0;
+            width: 100%;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+        }
+        
+        .btn-success {
+            background: var(--secondary-color);
+        }
+        
+        .btn-danger {
+            background: var(--danger-color);
+        }
+        
+        .btn-warning {
+            background: var(--warning-color);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            opacity: 0.9;
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .btn-group .btn {
+            flex: 1;
+        }
+        
+        /* Sliders */
+        .slider-container {
+            margin: 15px 0;
+        }
+        
+        .slider-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .slider {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+        }
+        
+        /* Toggle switches */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 15px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: var(--secondary-color);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        
+        /* Alertas */
+        .alert {
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .alert-warning {
+            background: rgba(243, 156, 18, 0.2);
+            border-left: 3px solid var(--warning-color);
+        }
+        
+        .alert-danger {
+            background: rgba(231, 76, 60, 0.2);
+            border-left: 3px solid var(--danger-color);
+        }
+        
+        /* Secciones */
+        .section {
+            margin: 20px 0;
+        }
+        
+        .section-title {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary-color);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-item span {
+                display: none;
+            }
+            
+            .nav-item i {
+                font-size: 1.4rem;
+                margin-bottom: 0;
+            }
+            
+            .modal {
+                width: 95%;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    
+    <!-- Barra de navegación inferior -->
+    <div id="nav-bar">
+        <div class="nav-item active" data-modal="stats-modal">
+            <i class="fas fa-chart-bar"></i>
+            <span>Estadísticas</span>
+        </div>
+        <div class="nav-item" data-modal="data-modal">
+            <i class="fas fa-database"></i>
+            <span>Datos</span>
+        </div>
+        <div class="nav-item" data-modal="servers-modal">
+            <i class="fas fa-server"></i>
+            <span>Servidores</span>
+        </div>
+        <div class="nav-item" data-modal="network-modal">
+            <i class="fas fa-network-wired"></i>
+            <span>Red</span>
+        </div>
+        <div class="nav-item" data-modal="config-modal">
+            <i class="fas fa-cog"></i>
+            <span>Configuración</span>
+        </div>
+    </div>
+    
+    <!-- Botón de ayuda flotante -->
+    <button id="help-btn">
+        <i class="fas fa-question"></i>
+    </button>
+    
+    <!-- Modales -->
+    <div class="modal-overlay" id="modal-overlay"></div>
+    
+    <!-- Modal de Estadísticas -->
+    <div class="modal" id="stats-modal">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-chart-bar"></i>
+                <h2>Estadísticas del Data Center</h2>
+            </div>
+            <button class="close-modal">×</button>
+        </div>
+        
+        <div class="section">
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-server"></i>
+                    <span>Servidores activos:</span>
+                </div>
+                <div class="stat-value" id="server-count">0</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-database"></i>
+                    <span>Paquetes de datos:</span>
+                </div>
+                <div class="stat-value" id="data-count">0</div>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="server-usage-bar" style="width: 0%"></div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-microchip"></i>
+                    <span>Uso de CPU:</span>
+                </div>
+                <div class="stat-value" id="cpu-usage">0%</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-memory"></i>
+                    <span>Uso de RAM:</span>
+                </div>
+                <div class="stat-value" id="ram-usage">0%</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-network-wired"></i>
+                <span>Tráfico de Red</span>
+            </h3>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-arrow-down"></i>
+                    <span>Entrada de datos:</span>
+                </div>
+                <div class="stat-value" id="data-in">0 MB/s</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>Salida de datos:</span>
+                </div>
+                <div class="stat-value" id="data-out">0 MB/s</div>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="network-usage-bar" style="width: 0%"></div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-history"></i>
+                    <span>Total entrada:</span>
+                </div>
+                <div class="stat-value" id="total-in">0 TB</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-history"></i>
+                    <span>Total salida:</span>
+                </div>
+                <div class="stat-value" id="total-out">0 TB</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-thermometer-half"></i>
+                <span>Estado del Sistema</span>
+            </h3>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-thermometer-half"></i>
+                    <span>Temperatura:</span>
+                </div>
+                <div class="stat-value" id="temperature">24°C</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-bolt"></i>
+                    <span>Consumo energético:</span>
+                </div>
+                <div class="stat-value" id="power-usage">0 kW</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-clock"></i>
+                    <span>Tiempo activo:</span>
+                </div>
+                <div class="stat-value" id="uptime">00:00:00</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Datos -->
+    <div class="modal" id="data-modal">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-database"></i>
+                <h2>Gestión de Datos</h2>
+            </div>
+            <button class="close-modal">×</button>
+        </div>
+        
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>Actualmente hay <strong id="alert-data-count">0</strong> paquetes de datos en el sistema</span>
+        </div>
+        
+        <div class="btn-group">
+            <button class="btn btn-success" id="add-data">
+                <i class="fas fa-plus-circle"></i> Añadir Datos
+            </button>
+            <button class="btn btn-danger" id="flush-data">
+                <i class="fas fa-trash-alt"></i> Vaciar Datos
+            </button>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>Entrada de Datos</span>
+            </h3>
+            
+            <button class="btn btn-primary" id="auto-input">
+                <i class="fas fa-random"></i> Auto Entrada
+            </button>
+            
+            <button class="btn btn-warning" id="burst-input">
+                <i class="fas fa-bolt"></i> Ráfaga de Datos
+            </button>
+            
+            <div class="stat-item">
+                <span>Velocidad de entrada:</span>
+                <div class="stat-value" id="current-input-speed">0 MB/s</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Salida de Datos</span>
+            </h3>
+            
+            <button class="btn btn-primary" id="auto-output">
+                <i class="fas fa-robot"></i> Auto Salida
+            </button>
+            
+            <button class="btn btn-success" id="process-data">
+                <i class="fas fa-cogs"></i> Procesar Datos
+            </button>
+            
+            <div class="stat-item">
+                <span>Velocidad de salida:</span>
+                <div class="stat-value" id="current-output-speed">0 MB/s</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Servidores -->
+    <div class="modal" id="servers-modal">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-server"></i>
+                <h2>Gestión de Servidores</h2>
+            </div>
+            <button class="close-modal">×</button>
+        </div>
+        
+        <div class="btn-group">
+            <button class="btn btn-success" id="add-server">
+                <i class="fas fa-plus"></i> Añadir Servidor
+            </button>
+            <button class="btn btn-danger" id="remove-server">
+                <i class="fas fa-minus"></i> Eliminar Servidor
+            </button>
+        </div>
+        
+        <button class="btn btn-primary" id="add-rack">
+            <i class="fas fa-server"></i> Añadir Rack Completo
+        </button>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Estado de los Servidores</span>
+            </h3>
+            
+            <div id="servers-list">
+                <!-- Lista de servidores se generará dinámicamente -->
+                <div class="alert">
+                    <i class="fas fa-info-circle"></i>
+                    <span>No hay servidores activos</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-power-off"></i>
+                <span>Control del Sistema</span>
+            </h3>
+            
+            <button class="btn btn-warning" id="maintenance-btn">
+                <i class="fas fa-tools"></i> Modo Mantenimiento
+            </button>
+            
+            <button class="btn btn-danger" id="emergency-btn">
+                <i class="fas fa-exclamation-triangle"></i> Emergencia
+            </button>
+            
+            <button class="btn" id="reset-all">
+                <i class="fas fa-power-off"></i> Reiniciar Sistema
+            </button>
+        </div>
+    </div>
+    
+    <!-- Modal de Red -->
+    <div class="modal" id="network-modal">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-network-wired"></i>
+                <h2>Configuración de Red</h2>
+            </div>
+            <button class="close-modal">×</button>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-wifi"></i>
+                <span>Conexiones</span>
+            </h3>
+            
+            <div class="toggle-container">
+                <div class="toggle-label">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>Mostrar conexiones</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="show-connections" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="stat-item">
+                <span>Conexiones activas:</span>
+                <div class="stat-value" id="connections-count">0</div>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="network-quality-bar" style="width: 100%"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Velocidad de Datos</span>
+            </h3>
+            
+            <div class="slider-container">
+                <label for="data-speed">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>Velocidad de transferencia:</span>
+                </label>
+                <input type="range" min="1" max="10" value="5" class="slider" id="data-speed">
+                <div class="stat-value text-right" id="data-speed-value">Normal</div>
+            </div>
+            
+            <div class="stat-item">
+                <span>Latencia:</span>
+                <div class="stat-value" id="network-latency">12 ms</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-shield-alt"></i>
+                <span>Seguridad</span>
+            </h3>
+            
+            <div class="toggle-container">
+                <div class="toggle-label">
+                    <i class="fas fa-firewall"></i>
+                    <span>Firewall activo</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="firewall-enabled" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="toggle-container">
+                <div class="toggle-label">
+                    <i class="fas fa-lock"></i>
+                    <span>Encriptación SSL</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="ssl-enabled" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="stat-item">
+                <span>Intentos de intrusión:</span>
+                <div class="stat-value" id="intrusion-attempts">0</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Configuración -->
+    <div class="modal" id="config-modal">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-cog"></i>
+                <h2>Configuración del Sistema</h2>
+            </div>
+            <button class="close-modal">×</button>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-palette"></i>
+                <span>Apariencia</span>
+            </h3>
+            
+            <div class="btn-group">
+                <button class="btn" id="day-mode">
+                    <i class="fas fa-sun"></i> Modo Día
+                </button>
+                <button class="btn" id="night-mode">
+                    <i class="fas fa-moon"></i> Modo Noche
+                </button>
+            </div>
+            
+            <div class="slider-container">
+                <label for="server-scale">
+                    <i class="fas fa-expand"></i>
+                    <span>Tamaño de servidores:</span>
+                </label>
+                <input type="range" min="80" max="120" value="100" class="slider" id="server-scale">
+                <div class="stat-value text-right" id="server-scale-value">Normal</div>
+            </div>
+            
+            <div class="toggle-container">
+                <div class="toggle-label">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Efectos de iluminación</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="light-effects" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-snowflake"></i>
+                <span>Refrigeración</span>
+            </h3>
+            
+            <div class="toggle-container">
+                <div class="toggle-label">
+                    <i class="fas fa-fan"></i>
+                    <span>Sistema de enfriamiento</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="cooling-system" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="slider-container">
+                <label for="cooling-power">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>Potencia de refrigeración:</span>
+                </label>
+                <input type="range" min="1" max="3" value="2" class="slider" id="cooling-power">
+                <div class="stat-value text-right" id="cooling-power-value">Media</div>
+            </div>
+            
+            <div class="stat-item">
+                <span>Temperatura objetivo:</span>
+                <div class="stat-value" id="target-temperature">24°C</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-info-circle"></i>
+                <span>Información del Sistema</span>
+            </h3>
+            
+            <div class="stat-item">
+                <span>Versión:</span>
+                <div class="stat-value">v2.4.1</div>
+            </div>
+            
+            <div class="stat-item">
+                <span>Renderizador:</span>
+                <div class="stat-value">Three.js r128</div>
+            </div>
+            
+            <div class="stat-item">
+                <span>Última actualización:</span>
+                <div class="stat-value">2023-06-15</div>
+            </div>
+            
+            <button class="btn btn-primary" id="reset-view">
+                <i class="fas fa-sync-alt"></i> Resetear Vista 3D
+            </button>
+        </div>
+    </div>
+    
+    <!-- Modal de Ayuda -->
+    <div class="modal" id="help-modal">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-question-circle"></i>
+                <h2>Ayuda y Tutorial</h2>
+            </div>
+            <button class="close-modal">×</button>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-info-circle"></i>
+                <span>¿Cómo funciona esta visualización?</span>
+            </h3>
+            
+            <p>Esta herramienta simula el funcionamiento de un data center en tiempo real, mostrando:</p>
+            <ul style="margin: 10px 0 10px 20px;">
+                <li>Flujo de datos entre servidores</li>
+                <li>Uso de recursos (CPU, RAM, red)</li>
+                <li>Temperatura y consumo energético</li>
+                <li>Conexiones de red y seguridad</li>
+            </ul>
+            
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Nota:</strong> Esta es una simulación interactiva, pero puede conectarse a sistemas reales mediante API.
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-server"></i>
+                <span>Controles principales</span>
+            </h3>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-plus"></i>
+                    <span>Añadir servidor:</span>
+                </div>
+                <div class="stat-value">Crea un nuevo servidor</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-database"></i>
+                    <span>Añadir datos:</span>
+                </div>
+                <div class="stat-value">Inyecta paquetes de datos</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-cogs"></i>
+                    <span>Procesar datos:</span>
+                </div>
+                <div class="stat-value">Envía datos a la salida</div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-label">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>Configuración:</span>
+                </div>
+                <div class="stat-value">Ajusta velocidad, tamaño, etc.</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-lightbulb"></i>
+                <span>Consejos</span>
+            </h3>
+            
+            <div class="alert">
+                <i class="fas fa-bolt"></i>
+                <strong>Ráfaga de datos:</strong> Simula picos de tráfico con el botón correspondiente.
+            </div>
+            
+            <div class="alert">
+                <i class="fas fa-snowflake"></i>
+                <strong>Refrigeración:</strong> Mantén activado el enfriamiento para evitar sobrecalentamiento.
+            </div>
+            
+            <div class="alert">
+                <i class="fas fa-network-wired"></i>
+                <strong>Conexiones:</strong> Los servidores se conectan automáticamente cuando están cerca.
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-plug"></i>
+                <span>Conexión a sistemas reales</span>
+            </h3>
+            
+            <p>Para conectar con un data center real:</p>
+            <ol style="margin: 10px 0 10px 20px;">
+                <li>Configura el endpoint de la API</li>
+                <li>Establece las credenciales de acceso</li>
+                <li>Selecciona los parámetros a monitorizar</li>
+            </ol>
+            
+            <button class="btn btn-primary" id="connect-api">
+                <i class="fas fa-plug"></i> Configurar Conexión API
+            </button>
+        </div>
+    </div>
+    
+    <!-- Modal de Conexión API -->
+    <div class="modal" id="api-modal">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-plug"></i>
+                <h2>Conexión a API Real</h2>
+            </div>
+            <button class="close-modal">×</button>
+        </div>
+        
+        <div class="section">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Esta funcionalidad requiere acceso a una API de monitoreo real</span>
+            </div>
+            
+            <div class="slider-container">
+                <label for="api-endpoint">
+                    <i class="fas fa-link"></i>
+                    <span>Endpoint de la API:</span>
+                </label>
+                <input type="text" id="api-endpoint" class="btn" placeholder="https://api.example.com/monitoring" style="text-align: left;">
+            </div>
+            
+            <div class="slider-container">
+                <label for="api-key">
+                    <i class="fas fa-key"></i>
+                    <span>API Key:</span>
+                </label>
+                <input type="password" id="api-key" class="btn" placeholder="Introduce tu clave API" style="text-align: left;">
+            </div>
+            
+            <div class="toggle-container">
+                <div class="toggle-label">
+                    <i class="fas fa-lock"></i>
+                    <span>Conexión segura (HTTPS)</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="api-secure" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-success" id="test-connection">
+                    <i class="fas fa-plug"></i> Probar Conexión
+                </button>
+                <button class="btn btn-primary" id="save-api">
+                    <i class="fas fa-save"></i> Guardar Configuración
+                </button>
+            </div>
+            
+            <div id="api-status" style="margin-top: 15px; display: none;">
+                <div class="progress-container">
+                    <div class="progress-bar" id="api-progress" style="width: 0%"></div>
+                </div>
+                <div id="api-message" class="stat-value" style="text-align: center;"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-sliders-h"></i>
+                <span>Parámetros a Monitorizar</span>
+            </h3>
+            
+            <div class="toggle-container">
+                <div class="toggle-label">
+                    <i class="fas fa-microchip"></i>
+                    <span>Uso de CPU</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="monitor-cpu" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="toggle-container">
+                <div class="toggle-label">
+                    <i class="fas fa-memory"></i>
+                    <span>Uso de RAM</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="monitor-ram" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="toggle-container">
+                <div class="toggle-label">
+                    <i class="fas fa-network-wired"></i>
+                    <span>Tráfico de red</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="monitor-network" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="toggle-container">
+                <div class="toggle-label">
+                    <i class="fas fa-thermometer-half"></i>
+                    <span>Temperatura</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="monitor-temp" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="stat-item">
+                <span>Intervalo de actualización:</span>
+                <select id="update-interval" class="btn" style="width: 100%; margin-top: 5px;">
+                    <option value="1">1 segundo</option>
+                    <option value="2">2 segundos</option>
+                    <option value="5" selected>5 segundos</option>
+                    <option value="10">10 segundos</option>
+                    <option value="30">30 segundos</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Variables de estado
+            let state = {
+                autoInput: false,
+                autoOutput: false,
+                coolingActive: true,
+                maintenanceMode: false,
+                emergencyMode: false,
+                dayMode: true,
+                showConnections: true,
+                dataSpeed: 5,
+                serverScale: 1.0,
+                connectedToAPI: false,
+                currentModal: 'stats-modal'
+            };
+            
+            // Inicialización de Three.js
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111122);
+            
+            // Configuración de cámara
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight - 60), 0.1, 1000);
+            camera.position.set(0, 15, 30);
+            
+            // Renderer con antialiasing
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight - 60);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Controles de órbita
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 10;
+            controls.maxDistance = 100;
+            
+            // Iluminación
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // Luz para modo noche
+            const nightLight = new THREE.AmbientLight(0x001133, 0.3);
+            scene.add(nightLight);
+            nightLight.visible = false;
+            
+            // Suelo del data center
+            const floorGeometry = new THREE.PlaneGeometry(60, 40);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x333344,
+                metalness: 0.1,
+                roughness: 0.8
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            
+            // Rejilla para el suelo
+            const gridHelper = new THREE.GridHelper(60, 60, 0x555555, 0x333333);
+            scene.add(gridHelper);
+            
+            // Elementos del data center
+            let servers = [];
+            let dataPackets = [];
+            let connections = [];
+            let serverCount = 0;
+            let dataCount = 0;
+            let dataInRate = 0;
+            let dataOutRate = 0;
+            let totalDataIn = 0;
+            let totalDataOut = 0;
+            let serverUsage = 0;
+            let cpuUsage = 0;
+            let ramUsage = 0;
+            let temperature = 24;
+            let powerUsage = 2.5;
+            let uptime = 0;
+            let networkLatency = 12;
+            let intrusionAttempts = 0;
+            let autoInputInterval = null;
+            let autoOutputInterval = null;
+            let burstInterval = null;
+            let coolingInterval = null;
+            let temperatureInterval = null;
+            let usageInterval = null;
+            let uptimeInterval = null;
+            let apiInterval = null;
+            
+            // Texturas y materiales
+            const serverMaterials = {
+                cabinet: new THREE.MeshStandardMaterial({ 
+                    color: 0x34495e,
+                    metalness: 0.7,
+                    roughness: 0.3
+                }),
+                panel: new THREE.MeshStandardMaterial({ 
+                    color: 0x1a1a1a,
+                    emissive: 0x000000,
+                    metalness: 0.8,
+                    roughness: 0.2
+                }),
+                light: new THREE.MeshStandardMaterial({ 
+                    color: 0x00ff00,
+                    emissive: 0x00aa00,
+                    emissiveIntensity: 0.5
+                }),
+                lightRed: new THREE.MeshStandardMaterial({ 
+                    color: 0xff0000,
+                    emissive: 0xaa0000,
+                    emissiveIntensity: 0.5
+                }),
+                lightBlue: new THREE.MeshStandardMaterial({ 
+                    color: 0x0066ff,
+                    emissive: 0x0044cc,
+                    emissiveIntensity: 0.5
+                })
+            };
+            
+            // Inicializar el data center
+            initDataCenter();
+            
+            function initDataCenter() {
+                // Crear servidores iniciales
+                for (let i = 0; i < 5; i++) {
+                    createServer(
+                        (Math.random() - 0.5) * 40,
+                        (Math.random() - 0.5) * 30
+                    );
+                }
+                
+                // Crear racks iniciales
+                createServerRack(-15, -10, 4);
+                createServerRack(15, -10, 4);
+                
+                // Iniciar intervalos de simulación
+                temperatureInterval = setInterval(updateTemperature, 3000);
+                usageInterval = setInterval(updateUsageStats, 1000);
+                coolingInterval = setInterval(coolingEffect, 2000);
+                uptimeInterval = setInterval(updateUptime, 1000);
+                
+                updateStats();
+                updateUI();
+            }
+            
+            // Función para crear un servidor
+            function createServer(x, z) {
+                const serverHeight = 2 + Math.random() * 3;
+                const serverWidth = 1.5 * state.serverScale;
+                const serverDepth = 1.5 * state.serverScale;
+                
+                // Grupo para el servidor
+                const serverGroup = new THREE.Group();
+                serverGroup.position.set(x, serverHeight/2, z);
+                
+                // Gabinete del servidor
+                const geometry = new THREE.BoxGeometry(serverWidth, serverHeight, serverDepth);
+                const server = new THREE.Mesh(geometry, serverMaterials.cabinet);
+                server.castShadow = true;
+                server.receiveShadow = true;
+                serverGroup.add(server);
+                
+                // Panel frontal
+                const panelGeometry = new THREE.BoxGeometry(serverWidth * 0.9, serverHeight * 0.9, 0.1);
+                const panel = new THREE.Mesh(panelGeometry, serverMaterials.panel);
+                panel.position.set(0, 0, serverDepth/2 + 0.05);
+                serverGroup.add(panel);
+                
+                // Añadir luces LED
+                addServerLights(serverGroup, serverWidth, serverHeight, serverDepth);
+                
+                // Añadir etiqueta
+                addServerLabel(serverGroup, serverWidth, serverHeight, serverDepth);
+                
+                scene.add(serverGroup);
+                servers.push({
+                    group: serverGroup,
+                    height: serverHeight,
+                    width: serverWidth,
+                    depth: serverDepth,
+                    position: { x, z },
+                    usage: Math.random() * 0.3,
+                    cpu: Math.random() * 30 + 10,
+                    ram: Math.random() * 40 + 20,
+                    temperature: 30 + Math.random() * 10
+                });
+                
+                serverCount++;
+                updateStats();
+                updateServersList();
+                
+                // Crear conexiones si hay más de un servidor
+                if (servers.length > 1 && state.showConnections) {
+                    createConnections();
+                }
+                
+                return serverGroup;
+            }
+            
+            // Función para añadir luces a un servidor
+            function addServerLights(serverGroup, width, height, depth) {
+                const lightCount = 3 + Math.floor(Math.random() * 3);
+                
+                for (let i = 0; i < lightCount; i++) {
+                    const lightGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+                    let lightMaterial;
+                    
+                    // Aleatoriamente elegir entre luz verde, roja o azul
+                    const lightType = Math.floor(Math.random() * 3);
+                    switch(lightType) {
+                        case 0:
+                            lightMaterial = serverMaterials.light;
+                            break;
+                        case 1:
+                            lightMaterial = serverMaterials.lightRed;
+                            break;
+                        case 2:
+                            lightMaterial = serverMaterials.lightBlue;
+                            break;
+                    }
+                    
+                    const light = new THREE.Mesh(lightGeometry, lightMaterial);
+                    light.position.set(
+                        (Math.random() - 0.5) * width * 0.7,
+                        (height/2 - 0.3) - i * (height * 0.8 / lightCount),
+                        depth/2 + 0.1
+                    );
+                    
+                    serverGroup.add(light);
+                    
+                    // Animar luces
+                    const blinkSpeed = 500 + Math.random() * 1500;
+                    setInterval(() => {
+                        lightMaterial.emissiveIntensity = Math.random() * 2;
+                    }, blinkSpeed);
+                }
+            }
+            
+            // Función para añadir etiqueta a un servidor
+            function addServerLabel(serverGroup, width, height, depth) {
+                // Simular una etiqueta con un pequeño plano
+                const labelGeometry = new THREE.PlaneGeometry(width * 0.6, 0.3);
+                const labelMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x000000,
+                    emissive: 0x333333,
+                    emissiveIntensity: 0.3
+                });
+                const label = new THREE.Mesh(labelGeometry, labelMaterial);
+                label.position.set(
+                    0,
+                    height/2 - 0.15,
+                    depth/2 + 0.11
+                );
+                label.rotation.x = Math.PI / 2;
+                serverGroup.add(label);
+            }
+            
+            // Función para crear un rack de servidores
+            function createServerRack(x, z, count) {
+                const rackWidth = 2.5 * state.serverScale;
+                const rackDepth = 1.8 * state.serverScale;
+                const rackHeight = 0.1;
+                
+                // Crear base del rack
+                const rackGeometry = new THREE.BoxGeometry(rackWidth, rackHeight, rackDepth);
+                const rackMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x222222,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                const rack = new THREE.Mesh(rackGeometry, rackMaterial);
+                rack.position.set(x, rackHeight/2, z);
+                rack.castShadow = true;
+                rack.receiveShadow = true;
+                scene.add(rack);
+                
+                // Crear servidores en el rack
+                const serverSpacing = rackWidth / (count + 1);
+                for (let i = 1; i <= count; i++) {
+                    const serverX = x - rackWidth/2 + i * serverSpacing;
+                    createServer(serverX, z);
+                }
+            }
+            
+            // Función para crear conexiones entre servidores
+            function createConnections() {
+                // Eliminar conexiones existentes
+                connections.forEach(conn => scene.remove(conn));
+                connections = [];
+                
+                if (!state.showConnections || servers.length < 2) return;
+                
+                // Crear conexiones entre servidores cercanos
+                for (let i = 0; i < servers.length; i++) {
+                    for (let j = i + 1; j < servers.length; j++) {
+                        const server1 = servers[i];
+                        const server2 = servers[j];
+                        
+                        const distance = Math.sqrt(
+                            Math.pow(server1.position.x - server2.position.x, 2) + 
+                            Math.pow(server1.position.z - server2.position.z, 2)
+                        );
+                        
+                        // Conectar solo servidores cercanos
+                        if (distance < 15) {
+                            const curve = new THREE.LineCurve3(
+                                new THREE.Vector3(
+                                    server1.position.x, 
+                                    server1.height * 0.8, 
+                                    server1.position.z
+                                ),
+                                new THREE.Vector3(
+                                    server2.position.x, 
+                                    server2.height * 0.8, 
+                                    server2.position.z
+                                )
+                            );
+                            
+                            const points = curve.getPoints(20);
+                            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                            
+                            const material = new THREE.LineBasicMaterial({ 
+                                color: 0x00ff00,
+                                transparent: true,
+                                opacity: 0.5
+                            });
+                            
+                            const line = new THREE.Line(geometry, material);
+                            scene.add(line);
+                            connections.push(line);
+                        }
+                    }
+                }
+                
+                $('#connections-count').text(connections.length);
+            }
+            
+            // Función para crear un paquete de datos
+            function createDataPacket(source, target) {
+                const size = 0.2 + Math.random() * 0.3;
+                const geometry = new THREE.SphereGeometry(size, 16, 16);
+                
+                // Color basado en el tipo de datos (simulado)
+                const dataType = Math.floor(Math.random() * 3);
+                let color;
+                switch(dataType) {
+                    case 0: // Datos normales
+                        color = new THREE.Color(
+                            Math.random() * 0.5 + 0.5,
+                            Math.random() * 0.5 + 0.5,
+                            Math.random() * 0.5 + 0.5
+                        );
+                        break;
+                    case 1: // Datos multimedia
+                        color = new THREE.Color(0x0066ff);
+                        break;
+                    case 2: // Datos críticos
+                        color = new THREE.Color(0xff3300);
+                        break;
+                }
+                
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.3,
+                    metalness: 0.7,
+                    roughness: 0.3
+                });
+                
+                const packet = new THREE.Mesh(geometry, material);
+                packet.castShadow = true;
+                
+                // Posición inicial
+                let startPos;
+                if (source === 'input') {
+                    startPos = new THREE.Vector3(
+                        -28,
+                        2,
+                        (Math.random() - 0.5) * 25
+                    );
+                } else if (source instanceof THREE.Object3D) {
+                    startPos = source.position.clone();
+                    startPos.y += 2;
+                } else {
+                    startPos = new THREE.Vector3(
+                        (Math.random() - 0.5) * 40,
+                        2,
+                        (Math.random() - 0.5) * 25
+                    );
+                }
+                
+                packet.position.copy(startPos);
+                
+                // Posición objetivo
+                let endPos;
+                if (target === 'output') {
+                    endPos = new THREE.Vector3(
+                        28,
+                        2,
+                        (Math.random() - 0.5) * 25
+                    );
+                } else if (target instanceof THREE.Object3D) {
+                    endPos = target.position.clone();
+                    endPos.y += 2;
+                } else {
+                    endPos = new THREE.Vector3(
+                        (Math.random() - 0.5) * 40,
+                        2,
+                        (Math.random() - 0.5) * 25
+                    );
+                }
+                
+                // Propiedades de animación
+                packet.userData = {
+                    startPos: startPos,
+                    endPos: endPos,
+                    progress: 0,
+                    speed: (0.005 + Math.random() * 0.01) * (state.dataSpeed / 5),
+                    size: size,
+                    processed: false
+                };
+                
+                scene.add(packet);
+                dataPackets.push(packet);
+                dataCount++;
+                dataInRate += size;
+                totalDataIn += size / 1000; // Convertir a GB
+                updateStats();
+                
+                return packet;
+            }
+            
+            // Función para procesar paquetes de datos (enviar a salida)
+            function processDataPacket() {
+                if (dataPackets.length === 0) return;
+                
+                // Encontrar un paquete que esté en un servidor (no en tránsito)
+                let packetToProcess = null;
+                for (let i = 0; i < dataPackets.length; i++) {
+                    const packet = dataPackets[i];
+                    if (packet.userData.progress >= 1 && !packet.userData.processed) {
+                        packetToProcess = packet;
+                        break;
+                    }
+                }
+                
+                if (!packetToProcess) return;
+                
+                // Establecer nuevo objetivo como salida
+                packetToProcess.userData = {
+                    startPos: packetToProcess.position.clone(),
+                    endPos: new THREE.Vector3(
+                        28,
+                        2,
+                        (Math.random() - 0.5) * 25
+                    ),
+                    progress: 0,
+                    speed: (0.005 + Math.random() * 0.01) * (state.dataSpeed / 5),
+                    size: packetToProcess.userData.size,
+                    processed: true
+                };
+                
+                dataOutRate += packetToProcess.userData.size;
+                totalDataOut += packetToProcess.userData.size / 1000; // Convertir a GB
+                updateStats();
+            }
+            
+            // Función para eliminar paquetes que llegaron a la salida
+            function removeCompletedPackets() {
+                for (let i = dataPackets.length - 1; i >= 0; i--) {
+                    const packet = dataPackets[i];
+                    if (packet.userData.progress >= 1 && 
+                        packet.position.x > 25) { // Cerca de la salida
+                        scene.remove(packet);
+                        dataPackets.splice(i, 1);
+                        dataCount--;
+                        updateStats();
+                    }
+                }
+            }
+            
+            // Función para vaciar todos los datos
+            function flushAllData() {
+                for (let i = dataPackets.length - 1; i >= 0; i--) {
+                    const packet = dataPackets[i];
+                    scene.remove(packet);
+                    dataPackets.splice(i, 1);
+                }
+                
+                dataCount = 0;
+                dataInRate = 0;
+                dataOutRate = 0;
+                updateStats();
+            }
+            
+            // Función para actualizar la temperatura del sistema
+            function updateTemperature() {
+                if (state.emergencyMode) {
+                    temperature = 24; // Temperatura ambiente en modo emergencia
+                    return;
+                }
+                
+                // Calcular temperatura basada en uso y servidores
+                let totalTemp = 0;
+                let maxTemp = 0;
+                
+                servers.forEach(server => {
+                    // Aumentar temperatura basada en uso
+                    server.temperature = 30 + (server.usage * 30);
+                    if (server.temperature > maxTemp) maxTemp = server.temperature;
+                    totalTemp += server.temperature;
+                });
+                
+                // Temperatura promedio con peso en el servidor más caliente
+                temperature = (totalTemp + maxTemp * 2) / (servers.length + 2);
+                
+                // Efecto de enfriamiento
+                if (state.coolingActive) {
+                    temperature = Math.max(24, temperature - 2);
+                }
+                
+                // Actualizar UI
+                $('#temperature').text(Math.round(temperature) + '°C');
+                
+                // Cambiar color del indicador según temperatura
+                const tempElement = $('#temperature');
+                tempElement.removeClass('cold normal warm hot critical');
+                
+                if (temperature < 30) {
+                    tempElement.addClass('cold');
+                } else if (temperature < 40) {
+                    tempElement.addClass('normal');
+                } else if (temperature < 50) {
+                    tempElement.addClass('warm');
+                } else if (temperature < 60) {
+                    tempElement.addClass('hot');
+                } else {
+                    tempElement.addClass('critical');
+                }
+            }
+            
+            // Efecto del sistema de enfriamiento
+            function coolingEffect() {
+                if (!state.coolingActive || state.emergencyMode) return;
+                
+                // Enfriar servidores individualmente
+                servers.forEach(server => {
+                    server.temperature = Math.max(30, server.temperature - (Math.random() * 3));
+                });
+                
+                // Añadir efecto visual de enfriamiento (partículas de frío)
+                if (Math.random() > 0.7) {
+                    const coolingGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+                    const coolingMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x66ccff,
+                        emissive: 0x0066cc,
+                        emissiveIntensity: 0.5,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    
+                    const coolingParticle = new THREE.Mesh(coolingGeometry, coolingMaterial);
+                    
+                    // Posicionar cerca de un servidor aleatorio
+                    const randomServer = servers[Math.floor(Math.random() * servers.length)];
+                    coolingParticle.position.copy(randomServer.group.position);
+                    coolingParticle.position.y += randomServer.height * 0.8;
+                    coolingParticle.position.x += (Math.random() - 0.5) * randomServer.width;
+                    coolingParticle.position.z += (Math.random() - 0.5) * randomServer.depth;
+                    
+                    scene.add(coolingParticle);
+                    
+                    // Animación y eliminación
+                    let scale = 0.1;
+                    const animateCooling = () => {
+                        scale += 0.1;
+                        coolingParticle.scale.set(scale, scale, scale);
+                        coolingParticle.material.opacity *= 0.9;
+                        
+                        if (coolingParticle.material.opacity < 0.1) {
+                            scene.remove(coolingParticle);
+                        } else {
+                            requestAnimationFrame(animateCooling);
+                        }
+                    };
+                    
+                    animateCooling();
+                }
+            }
+            
+            // Función para actualizar estadísticas de uso
+            function updateUsageStats() {
+                if (state.emergencyMode) {
+                    cpuUsage = 0;
+                    ramUsage = 0;
+                    serverUsage = 0;
+                    powerUsage = 0.5;
+                    return;
+                }
+                
+                // Calcular uso total del servidor
+                let totalUsage = 0;
+                let totalCpu = 0;
+                let totalRam = 0;
+                
+                servers.forEach(server => {
+                    server.usage = Math.min(1, Math.max(0, server.usage + (Math.random() - 0.45) * 0.1));
+                    server.cpu = Math.min(100, Math.max(0, server.cpu + (Math.random() - 0.45) * 5));
+                    server.ram = Math.min(100, Math.max(0, server.ram + (Math.random() - 0.45) * 5));
+                    
+                    totalUsage += server.usage;
+                    totalCpu += server.cpu;
+                    totalRam += server.ram;
+                });
+                
+                serverUsage = totalUsage / servers.length;
+                cpuUsage = totalCpu / servers.length;
+                ramUsage = totalRam / servers.length;
+                
+                // Actualizar consumo energético
+                powerUsage = 2.5 + (serverUsage * 7.5) * servers.length;
+                if (state.coolingActive) powerUsage += 1.5 * servers.length;
+                
+                $('#cpu-usage').text(Math.round(cpuUsage) + '%');
+                $('#ram-usage').text(Math.round(ramUsage) + '%');
+                $('#power-usage').text(powerUsage.toFixed(1) + ' kW');
+                
+                // Actualizar barras de progreso
+                $('#server-usage-bar').css('width', (serverUsage * 100) + '%');
+                $('#network-usage-bar').css('width', Math.min(100, (dataInRate + dataOutRate) * 5) + '%');
+                
+                // Cambiar color de la barra de uso del servidor
+                const usageBar = $('#server-usage-bar');
+                usageBar.removeClass('low medium high critical');
+                
+                if (serverUsage < 0.3) {
+                    usageBar.addClass('low');
+                } else if (serverUsage < 0.6) {
+                    usageBar.addClass('medium');
+                } else if (serverUsage < 0.8) {
+                    usageBar.addClass('high');
+                } else {
+                    usageBar.addClass('critical');
+                }
+                
+                // Actualizar lista de servidores
+                updateServersList();
+            }
+            
+            // Función para actualizar la lista de servidores en el modal
+            function updateServersList() {
+                if (servers.length === 0) {
+                    $('#servers-list').html(`
+                        <div class="alert">
+                            <i class="fas fa-info-circle"></i>
+                            <span>No hay servidores activos</span>
+                        </div>
+                    `);
+                    return;
+                }
+                
+                let html = '';
+                servers.forEach((server, index) => {
+                    const usagePercent = Math.round(server.usage * 100);
+                    const cpuPercent = Math.round(server.cpu);
+                    const ramPercent = Math.round(server.ram);
+                    const temp = Math.round(server.temperature);
+                    
+                    let statusClass = '';
+                    if (server.usage > 0.8) statusClass = 'high';
+                    if (server.temperature > 55) statusClass = 'critical';
+                    
+                    html += `
+                        <div class="server-item ${statusClass}" style="margin-bottom: 10px; padding: 10px; border-radius: 5px; background: rgba(255,255,255,0.05);">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <strong><i class="fas fa-server"></i> Servidor ${index + 1}</strong>
+                                <span>${temp}°C</span>
+                            </div>
+                            <div style="margin-bottom: 5px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 2px;">
+                                    <span>Uso:</span>
+                                    <span>${usagePercent}%</span>
+                                </div>
+                                <div class="progress-container">
+                                    <div class="progress-bar" style="width: ${usagePercent}%"></div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <div style="flex: 1;">
+                                    <div style="font-size: 0.8rem; margin-bottom: 2px;">CPU: ${cpuPercent}%</div>
+                                    <div class="progress-container">
+                                        <div class="progress-bar" style="width: ${cpuPercent}%"></div>
+                                    </div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 0.8rem; margin-bottom: 2px;">RAM: ${ramPercent}%</div>
+                                    <div class="progress-container">
+                                        <div class="progress-bar" style="width: ${ramPercent}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                $('#servers-list').html(html);
+            }
+            
+            // Función para actualizar el tiempo activo
+            function updateUptime() {
+                uptime++;
+                const hours = Math.floor(uptime / 3600);
+                const minutes = Math.floor((uptime % 3600) / 60);
+                const seconds = uptime % 60;
+                
+                $('#uptime').text(
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+                );
+            }
+            
+            // Función para actualizar todas las estadísticas
+            function updateStats() {
+                $('#server-count').text(serverCount);
+                $('#data-count').text(dataCount);
+                $('#alert-data-count').text(dataCount);
+                $('#data-in').text(dataInRate.toFixed(2) + ' MB/s');
+                $('#data-out').text(dataOutRate.toFixed(2) + ' MB/s');
+                $('#current-input-speed').text(dataInRate.toFixed(2) + ' MB/s');
+                $('#current-output-speed').text(dataOutRate.toFixed(2) + ' MB/s');
+                $('#total-in').text(totalDataIn.toFixed(3) + ' TB');
+                $('#total-out').text(totalDataOut.toFixed(3) + ' TB');
+                
+                // Decaer tasas de datos para visualización
+                dataInRate *= 0.92;
+                dataOutRate *= 0.92;
+            }
+            
+            // Función para actualizar la interfaz de usuario
+            function updateUI() {
+                // Botones de auto entrada/salida
+                $('#auto-input').toggleClass('btn-active', state.autoInput);
+                $('#auto-output').toggleClass('btn-active', state.autoOutput);
+                
+                // Botón de enfriamiento
+                $('#cooling-btn').toggleClass('btn-active', state.coolingActive);
+                if (state.coolingActive) {
+                    $('#cooling-btn').html('<i class="fas fa-snowflake"></i> Enfriando');
+                } else {
+                    $('#cooling-btn').html('<i class="fas fa-snowflake"></i> Enfriar');
+                }
+                
+                // Botón de mantenimiento
+                $('#maintenance-btn').toggleClass('btn-active', state.maintenanceMode);
+                if (state.maintenanceMode) {
+                    $('#maintenance-btn').html('<i class="fas fa-tools"></i> Mantenimiento ON');
+                } else {
+                    $('#maintenance-btn').html('<i class="fas fa-tools"></i> Mantenimiento');
+                }
+                
+                // Modo día/noche
+                if (state.dayMode) {
+                    scene.background = new THREE.Color(0x111122);
+                    ambientLight.intensity = 0.8;
+                    nightLight.visible = false;
+                } else {
+                    scene.background = new THREE.Color(0x000011);
+                    ambientLight.intensity = 0.3;
+                    nightLight.visible = true;
+                }
+            }
+            
+            // Función para modo de emergencia
+            function emergencyShutdown() {
+                state.emergencyMode = !state.emergencyMode;
+                
+                if (state.emergencyMode) {
+                    // Apagar todo
+                    if (autoInputInterval) clearInterval(autoInputInterval);
+                    if (autoOutputInterval) clearInterval(autoOutputInterval);
+                    if (burstInterval) clearInterval(burstInterval);
+                    
+                    state.autoInput = false;
+                    state.autoOutput = false;
+                    
+                    // Apagar luces de servidores
+                    servers.forEach(server => {
+                        server.group.traverse(child => {
+                            if (child.isMesh && child.material.emissive) {
+                                child.material.emissiveIntensity = 0;
+                            }
+                        });
+                    });
+                    
+                    // Mostrar alerta visual
+                    const emergencyLight = new THREE.AmbientLight(0xff0000, 0.5);
+                    emergencyLight.name = 'emergencyLight';
+                    scene.add(emergencyLight);
+                    
+                    $('#emergency-btn').addClass('btn-danger').html('<i class="fas fa-exclamation-triangle"></i> EMERGENCIA');
+                } else {
+                    // Restaurar sistema
+                    servers.forEach(server => {
+                        server.group.traverse(child => {
+                            if (child.isMesh && child.material.emissive) {
+                                child.material.emissiveIntensity = 0.5;
+                            }
+                        });
+                    });
+                    
+                    scene.remove(scene.getObjectByName('emergencyLight'));
+                    $('#emergency-btn').removeClass('btn-danger').html('<i class="fas fa-exclamation-triangle"></i> Emergencia');
+                }
+                
+                updateUI();
+                updateStats();
+            }
+            
+            // Función para conectar a API real (simulada)
+            function connectToAPI() {
+                const endpoint = $('#api-endpoint').val();
+                const apiKey = $('#api-key').val();
+                const secure = $('#api-secure').is(':checked');
+                
+                if (!endpoint || !apiKey) {
+                    showAPIMessage('Por favor completa todos los campos', 'error');
+                    return;
+                }
+                
+                if (secure && !endpoint.startsWith('https://')) {
+                    showAPIMessage('El endpoint debe usar HTTPS', 'error');
+                    return;
+                }
+                
+                $('#api-status').show();
+                $('#api-progress').css('width', '0%');
+                $('#api-message').text('Conectando...');
+                
+                // Simular conexión a API
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 10;
+                    $('#api-progress').css('width', progress + '%');
+                    
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        state.connectedToAPI = true;
+                        showAPIMessage('Conexión exitosa', 'success');
+                        
+                        // Iniciar actualización desde API
+                        startAPIUpdates();
+                    }
+                }, 100);
+            }
+            
+            function showAPIMessage(message, type) {
+                $('#api-message').text(message);
+                $('#api-message').removeClass('success error');
+                $('#api-message').addClass(type);
+            }
+            
+            function startAPIUpdates() {
+                const interval = parseInt($('#update-interval').val()) * 1000;
+                
+                if (apiInterval) clearInterval(apiInterval);
+                
+                apiInterval = setInterval(() => {
+                    // Simular obtención de datos de API
+                    const monitorCPU = $('#monitor-cpu').is(':checked');
+                    const monitorRAM = $('#monitor-ram').is(':checked');
+                    const monitorNetwork = $('#monitor-network').is(':checked');
+                    const monitorTemp = $('#monitor-temp').is(':checked');
+                    
+                    // Actualizar datos basados en "API"
+                    if (monitorCPU) {
+                        cpuUsage = Math.min(100, Math.max(0, cpuUsage + (Math.random() - 0.4) * 10));
+                        $('#cpu-usage').text(Math.round(cpuUsage) + '%');
+                    }
+                    
+                    if (monitorRAM) {
+                        ramUsage = Math.min(100, Math.max(0, ramUsage + (Math.random() - 0.4) * 10));
+                        $('#ram-usage').text(Math.round(ramUsage) + '%');
+                    }
+                    
+                    if (monitorNetwork) {
+                        dataInRate = Math.max(0, dataInRate + (Math.random() - 0.4) * 5);
+                        dataOutRate = Math.max(0, dataOutRate + (Math.random() - 0.4) * 5);
+                        $('#data-in').text(dataInRate.toFixed(2) + ' MB/s');
+                        $('#data-out').text(dataOutRate.toFixed(2) + ' MB/s');
+                    }
+                    
+                    if (monitorTemp) {
+                        temperature = Math.max(24, temperature + (Math.random() - 0.4) * 3);
+                        $('#temperature').text(Math.round(temperature) + '°C');
+                    }
+                    
+                    // Actualizar barras de progreso
+                    $('#server-usage-bar').css('width', cpuUsage + '%');
+                    $('#network-usage-bar').css('width', Math.min(100, (dataInRate + dataOutRate) * 5) + '%');
+                    
+                }, interval);
+            }
+            
+            // Manejo de modales
+            function openModal(modalId) {
+                $('.modal').removeClass('active');
+                $('.nav-item').removeClass('active');
+                $(`#${modalId}`).addClass('active');
+                $(`.nav-item[data-modal="${modalId}"]`).addClass('active');
+                $('#modal-overlay').addClass('active');
+                state.currentModal = modalId;
+            }
+            
+            function closeModal() {
+                $('.modal').removeClass('active');
+                $('#modal-overlay').removeClass('active');
+            }
+            
+            // Event listeners para navegación
+            $('.nav-item').click(function() {
+                const modalId = $(this).data('modal');
+                openModal(modalId);
+            });
+            
+            $('.close-modal, #modal-overlay').click(closeModal);
+            
+            // Evitar que el modal se cierre al hacer clic dentro
+            $('.modal').click(function(e) {
+                e.stopPropagation();
+            });
+            
+            // Botón de ayuda
+            $('#help-btn').click(function() {
+                openModal('help-modal');
+            });
+            
+            // Event listeners para controles
+            $('#add-server').click(function() {
+                createServer(
+                    (Math.random() - 0.5) * 40,
+                    (Math.random() - 0.5) * 30
+                );
+                closeModal();
+            });
+            
+            $('#remove-server').click(function() {
+                if (servers.length > 0) {
+                    const server = servers.pop();
+                    scene.remove(server.group);
+                    serverCount--;
+                    createConnections();
+                    updateStats();
+                    updateServersList();
+                }
+            });
+            
+            $('#add-rack').click(function() {
+                createServerRack(
+                    (Math.random() - 0.5) * 30,
+                    (Math.random() - 0.5) * 20,
+                    3 + Math.floor(Math.random() * 3)
+                );
+                closeModal();
+            });
+            
+            $('#add-data').click(function() {
+                if (servers.length > 0) {
+                    const randomServer = servers[Math.floor(Math.random() * servers.length)];
+                    createDataPacket('input', randomServer.group);
+                }
+            });
+            
+            $('#process-data').click(function() {
+                processDataPacket();
+            });
+            
+            $('#auto-input').click(function() {
+                state.autoInput = !state.autoInput;
+                
+                if (state.autoInput) {
+                    autoInputInterval = setInterval(() => {
+                        if (servers.length > 0) {
+                            const randomServer = servers[Math.floor(Math.random() * servers.length)];
+                            createDataPacket('input', randomServer.group);
+                        }
+                    }, 1000 / state.dataSpeed);
+                } else {
+                    clearInterval(autoInputInterval);
+                    autoInputInterval = null;
+                }
+                
+                updateUI();
+            });
+            
+            $('#auto-output').click(function() {
+                state.autoOutput = !state.autoOutput;
+                
+                if (state.autoOutput) {
+                    autoOutputInterval = setInterval(() => {
+                        processDataPacket();
+                    }, 1500 / state.dataSpeed);
+                } else {
+                    clearInterval(autoOutputInterval);
+                    autoOutputInterval = null;
+                }
+                
+                updateUI();
+            });
+            
+            $('#burst-input').click(function() {
+                if (burstInterval) {
+                    clearInterval(burstInterval);
+                    burstInterval = null;
+                    $(this).removeClass('btn-active');
+                } else {
+                    $(this).addClass('btn-active');
+                    burstInterval = setInterval(() => {
+                        if (servers.length > 0) {
+                            for (let i = 0; i < 3; i++) {
+                                const randomServer = servers[Math.floor(Math.random() * servers.length)];
+                                createDataPacket('input', randomServer.group);
+                            }
+                        }
+                    }, 300);
+                    
+                    // Detener después de 3 segundos
+                    setTimeout(() => {
+                        clearInterval(burstInterval);
+                        burstInterval = null;
+                        $(this).removeClass('btn-active');
+                    }, 3000);
+                }
+            });
+            
+            $('#flush-data').click(function() {
+                flushAllData();
+            });
+            
+            $('#cooling-system').change(function() {
+                state.coolingActive = $(this).is(':checked');
+                updateUI();
+            });
+            
+            $('#maintenance-btn').click(function() {
+                state.maintenanceMode = !state.maintenanceMode;
+                updateUI();
+            });
+            
+            $('#emergency-btn').click(function() {
+                emergencyShutdown();
+            });
+            
+            $('#day-mode').click(function() {
+                state.dayMode = true;
+                updateUI();
+            });
+            
+            $('#night-mode').click(function() {
+                state.dayMode = false;
+                updateUI();
+            });
+            
+            $('#reset-all').click(function() {
+                // Reiniciar todo el sistema
+                state.autoInput = false;
+                state.autoOutput = false;
+                state.coolingActive = true;
+                state.maintenanceMode = false;
+                state.emergencyMode = false;
+                state.dayMode = true;
+                
+                // Limpiar intervalos
+                if (autoInputInterval) clearInterval(autoInputInterval);
+                if (autoOutputInterval) clearInterval(autoOutputInterval);
+                if (burstInterval) clearInterval(burstInterval);
+                if (apiInterval) clearInterval(apiInterval);
+                
+                // Eliminar todos los elementos
+                servers.forEach(server => scene.remove(server.group));
+                dataPackets.forEach(packet => scene.remove(packet));
+                connections.forEach(conn => scene.remove(conn));
+                
+                // Restablecer variables
+                servers = [];
+                dataPackets = [];
+                connections = [];
+                serverCount = 0;
+                dataCount = 0;
+                dataInRate = 0;
+                dataOutRate = 0;
+                totalDataIn = 0;
+                totalDataOut = 0;
+                serverUsage = 0;
+                cpuUsage = 0;
+                ramUsage = 0;
+                temperature = 24;
+                powerUsage = 2.5;
+                uptime = 0;
+                
+                // Reiniciar escena
+                scene.remove(scene.getObjectByName('emergencyLight'));
+                initDataCenter();
+                updateUI();
+                closeModal();
+            });
+            
+            $('#reset-view').click(function() {
+                // Restablecer la vista de la cámara
+                camera.position.set(0, 15, 30);
+                camera.lookAt(0, 0, 0);
+                controls.reset();
+                closeModal();
+            });
+            
+            // Control deslizante de velocidad de datos
+            $('#data-speed').on('input', function() {
+                state.dataSpeed = parseInt($(this).val());
+                let speedText = '';
+                
+                if (state.dataSpeed < 3) speedText = 'Lenta';
+                else if (state.dataSpeed < 7) speedText = 'Normal';
+                else speedText = 'Rápida';
+                
+                $('#data-speed-value').text(speedText);
+                
+                // Ajustar intervalos existentes
+                if (autoInputInterval) {
+                    clearInterval(autoInputInterval);
+                    autoInputInterval = setInterval(() => {
+                        if (servers.length > 0) {
+                            const randomServer = servers[Math.floor(Math.random() * servers.length)];
+                            createDataPacket('input', randomServer.group);
+                        }
+                    }, 1000 / state.dataSpeed);
+                }
+                
+                if (autoOutputInterval) {
+                    clearInterval(autoOutputInterval);
+                    autoOutputInterval = setInterval(() => {
+                        processDataPacket();
+                    }, 1500 / state.dataSpeed);
+                }
+            });
+            
+            // Control deslizante de tamaño de servidores
+            $('#server-scale').on('input', function() {
+                const scaleValue = parseInt($(this).val()) / 100;
+                state.serverScale = scaleValue;
+                let scaleText = '';
+                
+                if (scaleValue < 0.9) scaleText = 'Pequeño';
+                else if (scaleValue < 1.1) scaleText = 'Normal';
+                else scaleText = 'Grande';
+                
+                $('#server-scale-value').text(scaleText);
+                
+                // Actualizar tamaño de servidores existentes
+                servers.forEach(server => {
+                    server.group.scale.set(scaleValue, scaleValue, scaleValue);
+                    server.width = 1.5 * scaleValue;
+                    server.depth = 1.5 * scaleValue;
+                });
+            });
+            
+            // Alternar conexiones de red
+            $('#show-connections').change(function() {
+                state.showConnections = $(this).is(':checked');
+                createConnections();
+            });
+            
+            // Potencia de refrigeración
+            $('#cooling-power').on('input', function() {
+                const power = parseInt($(this).val());
+                let powerText = '';
+                
+                if (power === 1) powerText = 'Baja';
+                else if (power === 2) powerText = 'Media';
+                else powerText = 'Alta';
+                
+                $('#cooling-power-value').text(powerText);
+            });
+            
+            // Conexión API
+            $('#connect-api').click(function() {
+                openModal('api-modal');
+            });
+            
+            $('#test-connection').click(connectToAPI);
+            
+            $('#save-api').click(function() {
+                // Simplemente cerramos el modal después de "guardar"
+                closeModal();
+            });
+            
+            // Manejar redimensionamiento de ventana
+            window.addEventListener('resize', function() {
+                camera.aspect = window.innerWidth / (window.innerHeight - 60);
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight - 60);
+            });
+            
+            // Bucle de animación
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Animar paquetes de datos
+                dataPackets.forEach(packet => {
+                    const data = packet.userData;
+                    if (data.progress < 1) {
+                        data.progress += data.speed;
+                        packet.position.lerpVectors(data.startPos, data.endPos, data.progress);
+                        
+                        // Añadir algo de rebote
+                        const bounceHeight = 3;
+                        packet.position.y += Math.sin(data.progress * Math.PI) * bounceHeight;
+                        
+                        // Rotar mientras se mueve
+                        packet.rotation.x += 0.01;
+                        packet.rotation.y += 0.02;
+                    }
+                });
+                
+                // Eliminar paquetes que llegaron a la salida
+                removeCompletedPackets();
+                
+                // Actualizar controles de órbita
+                controls.update();
+                
+                renderer.render(scene, camera);
+            }
+            
+            animate();
+            
+            // Abrir modal de estadísticas al inicio
+            openModal('stats-modal');
+        });
+    </script>
+
+</body></html>
